@@ -1,17 +1,106 @@
-<h2>Shape Creator</h2>
-<p>Count: <input id="count" type="number" value="5"></p>
-<button id="create">Create</button>
-<button id="cancel">Cancel</button>
-<script>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Figma Interaction Doc Generator</title>
+    <style>
+      html, body {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+      }
+      #plugin-container {
+        min-height: 660px;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 16px;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+          "Open Sans", "Helvetica Neue", sans-serif;
+        background-color: #fff;
+      }
+      h2 {
+        font-size: 16px;
+        margin-bottom: 8px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 160px;
+        font-size: 12px;
+        font-family: monospace;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        box-sizing: border-box;
+      }
+      button {
+        background-color: #18a0fb;
+        border: none;
+        border-radius: 4px;
+        color: white;
+        font-size: 12px;
+        padding: 8px 12px;
+        margin-top: 12px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0d8ae6;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="plugin-container">
+      <h2>交互说明文档生成器</h2>
+      <div id="doc-input" contenteditable="true" style="width:100%;min-height:160px;border:1px solid #ccc;border-radius:4px;padding:8px;font-size:12px;font-family:monospace;background:#fff;outline:none;"></div>
+      <button id="create-doc">创建文档说明</button>
+      <button id="copy">复制到剪贴板</button>
+    </div>
+    <script>
+      window.onmessage = async (event) => {
+        const { type, data } = event.data.pluginMessage;
+        if (type === 'generate-doc') {
+          const output = document.getElementById('doc-input');
+          output.innerHTML = data;
+        }
+      };
 
-document.getElementById('create').onclick = () => {
-  const textbox = document.getElementById('count');
-  const count = parseInt(textbox.value, 10);
-  parent.postMessage({ pluginMessage: { type: 'create-shapes', count } }, '*')
-}
+      document.getElementById('copy').onclick = () => {
+        const div = document.getElementById('doc-input');
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(div);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        document.execCommand('copy');
+      };
 
-document.getElementById('cancel').onclick = () => {
-  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
-}
+      document.getElementById('create-doc').onclick = () => {
+        const content = document.getElementById('doc-input').innerHTML;
+        parent.postMessage({
+          pluginMessage: {
+            type: 'create-documentation',
+            content: content
+          }
+        }, '*');
+      };
 
-</script>
+      function resizeWindow() {
+        const container = document.getElementById('plugin-container');
+        const height = Math.max(container.scrollHeight, 660);
+        parent.postMessage({
+          pluginMessage: {
+            type: 'resize',
+            height: height
+          }
+        }, '*');
+      }
+      window.addEventListener('load', resizeWindow);
+      window.addEventListener('resize', resizeWindow);
+      document.getElementById('doc-input').addEventListener('input', resizeWindow);
+    </script>
+  </body>
+</html>
