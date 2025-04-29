@@ -217,3 +217,78 @@ if (figma.editorType === 'figjam') {
     }
   };
 }
+
+import { FrameService } from './frame-service';
+import { AIService } from './ai-service';
+
+const frameService = FrameService.getInstance();
+const aiService = AIService.getInstance();
+
+// 设置 API Key
+aiService.setApiKey('sk-229c2d52c43446ff890877402ea1772d');
+
+// 处理 UI 消息
+figma.ui.onmessage = async (msg) => {
+  if (msg.type === 'analyze') {
+    try {
+      // 获取选中的 Frame 信息
+      const selectedFrames = await frameService.getSelectedFrames();
+      
+      if (selectedFrames.length === 0) {
+        figma.ui.postMessage({
+          type: 'error',
+          data: '请先选择一个 Frame、Instance 或 Group'
+        });
+        return;
+      }
+
+      // 格式化 Frame 信息
+      const frameInfo = frameService.formatFrameInfo(selectedFrames);
+
+      // 构建完整的提示词
+      const fullPrompt = `请分析以下设计稿的交互说明，包括但不限于：
+1. 页面整体布局和结构
+2. 主要功能区域划分
+3. 交互元素（按钮、输入框等）的状态和变化
+4. 用户操作流程
+5. 视觉层次和重点
+
+设计稿信息：
+${frameInfo}
+
+用户提示：${msg.prompt}`;
+
+      // 调用 AI 服务
+      const response = await aiService.analyzeFrame(frameInfo, fullPrompt);
+
+      if (response.success && response.data) {
+        figma.ui.postMessage({
+          type: 'result',
+          data: response.data
+        });
+      } else {
+        figma.ui.postMessage({
+          type: 'error',
+          data: response.error || 'AI 服务调用失败'
+        });
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '发生未知错误';
+      figma.ui.postMessage({
+        type: 'error',
+        data: errorMessage
+      });
+    }
+  }
+};
+
+// 显示 UI
+figma.showUI(__html__, { 
+  width: 440,
+  height: 600,
+  themeColors: true,
+  visible: true,
+  title: "交互说明文档生成器"
+});
+
+

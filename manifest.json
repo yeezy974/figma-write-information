@@ -1,5 +1,5 @@
 {
-  "name": "Figma Write information",
+  "name": "AI Design Assistant",
   "id": "1497444990001371232",
   "api": "1.0.0",
   "main": "code.js",
@@ -12,8 +12,7 @@
   ],
   "ui": "ui.html",
   "networkAccess": {
-    "allowedDomains": [
-      "none"
-    ]
+    "allowedDomains": ["*"],
+    "reasoning": "需要访问 AI 服务 API 来提供设计建议和分析功能"
   }
 }
