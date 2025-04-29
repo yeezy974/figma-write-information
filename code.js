@@ -480,35 +480,80 @@ ${frameInfo}
     }
     return createdNodes;
   }
-  async function handleMessage(msg) {
-    try {
-      if (msg.type === "resize" && msg.height) {
-        figma.ui.resize(440, msg.height);
-        return;
+  var frameService = FrameService.getInstance();
+  var aiService = AIService.getInstance();
+  aiService.setApiKey("sk-229c2d52c43446ff890877402ea1772d");
+  async function createDocumentation(node, content) {
+    const x = node.x + node.width + 50;
+    const y = node.y;
+    await figma.loadFontAsync({ family: "PingFang SC", style: "Regular" });
+    const text = figma.createText();
+    text.fontName = { family: "PingFang SC", style: "Regular" };
+    text.fontSize = 16;
+    text.characters = content || "\u8FD9\u91CC\u5C06\u663E\u793A\u4EA4\u4E92\u8BF4\u660E\u5185\u5BB9";
+    text.x = x;
+    text.y = y;
+    text.fills = [{ type: "SOLID", color: { r: 52 / 255, g: 145 / 255, b: 250 / 255 } }];
+    figma.currentPage.appendChild(text);
+    return text;
+  }
+  figma.ui.onmessage = async (msg) => {
+    if (msg.type === "analyze") {
+      try {
+        const selectedFrames = await frameService.getSelectedFrames();
+        if (selectedFrames.length === 0) {
+          figma.ui.postMessage({
+            type: "error",
+            data: "\u8BF7\u5148\u9009\u62E9\u4E00\u4E2A Frame\u3001Instance \u6216 Group"
+          });
+          return;
+        }
+        const frameInfo = frameService.formatFrameInfo(selectedFrames);
+        const fullPrompt = `\u8BF7\u5206\u6790\u4EE5\u4E0B\u8BBE\u8BA1\u7A3F\u7684\u4EA4\u4E92\u8BF4\u660E\uFF0C\u5305\u62EC\u4F46\u4E0D\u9650\u4E8E\uFF1A
+1. \u9875\u9762\u6574\u4F53\u5E03\u5C40\u548C\u7ED3\u6784
+2. \u4E3B\u8981\u529F\u80FD\u533A\u57DF\u5212\u5206
+3. \u4EA4\u4E92\u5143\u7D20\uFF08\u6309\u94AE\u3001\u8F93\u5165\u6846\u7B49\uFF09\u7684\u72B6\u6001\u548C\u53D8\u5316
+4. \u7528\u6237\u64CD\u4F5C\u6D41\u7A0B
+5. \u89C6\u89C9\u5C42\u6B21\u548C\u91CD\u70B9
+
+\u8BBE\u8BA1\u7A3F\u4FE1\u606F\uFF1A
+${frameInfo}
+
+\u7528\u6237\u63D0\u793A\uFF1A${msg.prompt}`;
+        const response = await aiService.analyzeFrame(frameInfo, fullPrompt);
+        if (response.success && response.data) {
+          figma.ui.postMessage({
+            type: "result",
+            data: response.data
+          });
+        } else {
+          figma.ui.postMessage({
+            type: "error",
+            data: response.error || "AI \u670D\u52A1\u8C03\u7528\u5931\u8D25"
+          });
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "\u53D1\u751F\u672A\u77E5\u9519\u8BEF";
+        figma.ui.postMessage({
+          type: "error",
+          data: errorMessage
+        });
       }
-      if (msg.type === "create-documentation") {
+    } else if (msg.type === "create-documentation") {
+      try {
         const selection = figma.currentPage.selection;
         if (selection.length > 0 && (selection[0].type === "FRAME" || selection[0].type === "COMPONENT" || selection[0].type === "GROUP" || selection[0].type === "INSTANCE")) {
-          try {
-            const docTexts = await createParagraphTextNodes(selection[0], msg.content || "");
-            if (docTexts.length > 0) {
-              figma.viewport.scrollAndZoomIntoView([docTexts[0]]);
-            }
-            figma.notify("\u8BF4\u660E\u6587\u6863\u521B\u5EFA\u6210\u529F\uFF01");
-          } catch (error) {
-            figma.notify("\u521B\u5EFA\u8BF4\u660E\u6587\u6863\u65F6\u51FA\u9519\uFF1A" + (error instanceof Error ? error.message : String(error)));
-          }
+          const docText = await createDocumentation(selection[0], msg.content);
+          figma.viewport.scrollAndZoomIntoView([docText]);
+          figma.notify("\u8BF4\u660E\u6587\u6863\u521B\u5EFA\u6210\u529F\uFF01");
         } else {
           figma.notify("\u8BF7\u9009\u62E9\u4E00\u4E2A\u753B\u6846\uFF08frame\uFF09\u3001\u7EC4\u4EF6\uFF08component/instance\uFF09\u6216\u5206\u7EC4\uFF08group\uFF09\u6765\u521B\u5EFA\u8BF4\u660E\u6587\u6863");
         }
+      } catch (error) {
+        figma.notify("\u521B\u5EFA\u8BF4\u660E\u6587\u6863\u65F6\u51FA\u9519\uFF1A" + (error instanceof Error ? error.message : String(error)));
       }
-      if (msg.type === "cancel") {
-        figma.closePlugin();
-      }
-    } catch (error) {
-      figma.notify("\u53D1\u751F\u9519\u8BEF\uFF1A" + (error instanceof Error ? error.message : String(error)));
     }
-  }
+  };
   figma.showUI(__html__, {
     width: 440,
     height: 600,
@@ -516,7 +561,6 @@ ${frameInfo}
     visible: true,
     title: "\u4EA4\u4E92\u8BF4\u660E\u6587\u6863\u751F\u6210\u5668"
   });
-  figma.ui.onmessage = handleMessage;
   if (figma.editorType === "figjam") {
     figma.showUI(__html__, {
       width: 440,
@@ -578,58 +622,4 @@ ${frameInfo}
       }
     };
   }
-  var frameService = FrameService.getInstance();
-  var aiService = AIService.getInstance();
-  aiService.setApiKey("sk-229c2d52c43446ff890877402ea1772d");
-  figma.ui.onmessage = async (msg) => {
-    if (msg.type === "analyze") {
-      try {
-        const selectedFrames = await frameService.getSelectedFrames();
-        if (selectedFrames.length === 0) {
-          figma.ui.postMessage({
-            type: "error",
-            data: "\u8BF7\u5148\u9009\u62E9\u4E00\u4E2A Frame\u3001Instance \u6216 Group"
-          });
-          return;
-        }
-        const frameInfo = frameService.formatFrameInfo(selectedFrames);
-        const fullPrompt = `\u8BF7\u5206\u6790\u4EE5\u4E0B\u8BBE\u8BA1\u7A3F\u7684\u4EA4\u4E92\u8BF4\u660E\uFF0C\u5305\u62EC\u4F46\u4E0D\u9650\u4E8E\uFF1A
-1. \u9875\u9762\u6574\u4F53\u5E03\u5C40\u548C\u7ED3\u6784
-2. \u4E3B\u8981\u529F\u80FD\u533A\u57DF\u5212\u5206
-3. \u4EA4\u4E92\u5143\u7D20\uFF08\u6309\u94AE\u3001\u8F93\u5165\u6846\u7B49\uFF09\u7684\u72B6\u6001\u548C\u53D8\u5316
-4. \u7528\u6237\u64CD\u4F5C\u6D41\u7A0B
-5. \u89C6\u89C9\u5C42\u6B21\u548C\u91CD\u70B9
-
-\u8BBE\u8BA1\u7A3F\u4FE1\u606F\uFF1A
-${frameInfo}
-
-\u7528\u6237\u63D0\u793A\uFF1A${msg.prompt}`;
-        const response = await aiService.analyzeFrame(frameInfo, fullPrompt);
-        if (response.success && response.data) {
-          figma.ui.postMessage({
-            type: "result",
-            data: response.data
-          });
-        } else {
-          figma.ui.postMessage({
-            type: "error",
-            data: response.error || "AI \u670D\u52A1\u8C03\u7528\u5931\u8D25"
-          });
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "\u53D1\u751F\u672A\u77E5\u9519\u8BEF";
-        figma.ui.postMessage({
-          type: "error",
-          data: errorMessage
-        });
-      }
-    }
-  };
-  figma.showUI(__html__, {
-    width: 440,
-    height: 600,
-    themeColors: true,
-    visible: true,
-    title: "\u4EA4\u4E92\u8BF4\u660E\u6587\u6863\u751F\u6210\u5668"
-  });
 })();

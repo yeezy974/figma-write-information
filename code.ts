@@ -106,41 +106,110 @@ async function createParagraphTextNodes(node: FrameNode | ComponentNode | GroupN
   return createdNodes;
 }
 
-async function handleMessage(msg: {type: string, content?: string, height?: number}) {
-  try {
-    if (msg.type === 'resize' && msg.height) {
-      figma.ui.resize(440, msg.height);
-      return;
-    }
+import { FrameService } from './frame-service';
+import { AIService } from './ai-service';
 
-    if (msg.type === 'create-documentation') {
+const frameService = FrameService.getInstance();
+const aiService = AIService.getInstance();
+
+// 设置 API Key
+aiService.setApiKey('sk-229c2d52c43446ff890877402ea1772d');
+
+// 创建说明文档的函数
+async function createDocumentation(node: FrameNode | ComponentNode | GroupNode | InstanceNode, content: string) {
+  // 计算新文本的位置
+  const x = node.x + node.width + 50;
+  const y = node.y;
+
+  // 加载字体（PingFang SC）
+  await figma.loadFontAsync({ family: "PingFang SC", style: "Regular" });
+
+  // 创建文本节点
+  const text = figma.createText();
+  text.fontName = { family: "PingFang SC", style: "Regular" };
+  text.fontSize = 16;
+  text.characters = content || "这里将显示交互说明内容";
+  text.x = x;
+  text.y = y;
+  text.fills = [{ type: 'SOLID', color: { r: 52/255, g: 145/255, b: 250/255 } }]; // #3491FA
+
+  figma.currentPage.appendChild(text);
+  return text;
+}
+
+// 处理 UI 消息
+figma.ui.onmessage = async (msg) => {
+  if (msg.type === 'analyze') {
+    try {
+      // 获取选中的 Frame 信息
+      const selectedFrames = await frameService.getSelectedFrames();
+      
+      if (selectedFrames.length === 0) {
+        figma.ui.postMessage({
+          type: 'error',
+          data: '请先选择一个 Frame、Instance 或 Group'
+        });
+        return;
+      }
+
+      // 格式化 Frame 信息
+      const frameInfo = frameService.formatFrameInfo(selectedFrames);
+
+      // 构建完整的提示词
+      const fullPrompt = `请分析以下设计稿的交互说明，包括但不限于：
+1. 页面整体布局和结构
+2. 主要功能区域划分
+3. 交互元素（按钮、输入框等）的状态和变化
+4. 用户操作流程
+5. 视觉层次和重点
+
+设计稿信息：
+${frameInfo}
+
+用户提示：${msg.prompt}`;
+
+      // 调用 AI 服务
+      const response = await aiService.analyzeFrame(frameInfo, fullPrompt);
+
+      if (response.success && response.data) {
+        figma.ui.postMessage({
+          type: 'result',
+          data: response.data
+        });
+      } else {
+        figma.ui.postMessage({
+          type: 'error',
+          data: response.error || 'AI 服务调用失败'
+        });
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '发生未知错误';
+      figma.ui.postMessage({
+        type: 'error',
+        data: errorMessage
+      });
+    }
+  } else if (msg.type === 'create-documentation') {
+    try {
       const selection = figma.currentPage.selection;
-      if (
-        selection.length > 0 &&
-        (selection[0].type === 'FRAME' || selection[0].type === 'COMPONENT' || selection[0].type === 'GROUP' || selection[0].type === 'INSTANCE')
-      ) {
-        try {
-          const docTexts = await createParagraphTextNodes(selection[0] as FrameNode | ComponentNode | GroupNode | InstanceNode, msg.content || '');
-          if (docTexts.length > 0) {
-            figma.viewport.scrollAndZoomIntoView([docTexts[0]]);
-          }
-          figma.notify('说明文档创建成功！');
-        } catch (error: unknown) {
-          figma.notify('创建说明文档时出错：' + (error instanceof Error ? error.message : String(error)));
-        }
+      if (selection.length > 0 && 
+          (selection[0].type === 'FRAME' || 
+           selection[0].type === 'COMPONENT' || 
+           selection[0].type === 'GROUP' || 
+           selection[0].type === 'INSTANCE')) {
+        const docText = await createDocumentation(selection[0] as FrameNode | ComponentNode | GroupNode | InstanceNode, msg.content);
+        figma.viewport.scrollAndZoomIntoView([docText]);
+        figma.notify('说明文档创建成功！');
       } else {
         figma.notify('请选择一个画框（frame）、组件（component/instance）或分组（group）来创建说明文档');
       }
+    } catch (error: unknown) {
+      figma.notify('创建说明文档时出错：' + (error instanceof Error ? error.message : String(error)));
     }
-
-    if (msg.type === 'cancel') {
-      figma.closePlugin();
-    }
-  } catch (error: unknown) {
-    figma.notify('发生错误：' + (error instanceof Error ? error.message : String(error)));
   }
-}
+};
 
+// 显示 UI
 figma.showUI(__html__, { 
   width: 440,
   height: 600,
@@ -148,7 +217,6 @@ figma.showUI(__html__, {
   visible: true,
   title: "交互说明文档生成器"
 });
-figma.ui.onmessage = handleMessage;
 
 if (figma.editorType === 'figjam') {
   figma.showUI(__html__,{
@@ -217,78 +285,5 @@ if (figma.editorType === 'figjam') {
     }
   };
 }
-
-import { FrameService } from './frame-service';
-import { AIService } from './ai-service';
-
-const frameService = FrameService.getInstance();
-const aiService = AIService.getInstance();
-
-// 设置 API Key
-aiService.setApiKey('sk-229c2d52c43446ff890877402ea1772d');
-
-// 处理 UI 消息
-figma.ui.onmessage = async (msg) => {
-  if (msg.type === 'analyze') {
-    try {
-      // 获取选中的 Frame 信息
-      const selectedFrames = await frameService.getSelectedFrames();
-      
-      if (selectedFrames.length === 0) {
-        figma.ui.postMessage({
-          type: 'error',
-          data: '请先选择一个 Frame、Instance 或 Group'
-        });
-        return;
-      }
-
-      // 格式化 Frame 信息
-      const frameInfo = frameService.formatFrameInfo(selectedFrames);
-
-      // 构建完整的提示词
-      const fullPrompt = `请分析以下设计稿的交互说明，包括但不限于：
-1. 页面整体布局和结构
-2. 主要功能区域划分
-3. 交互元素（按钮、输入框等）的状态和变化
-4. 用户操作流程
-5. 视觉层次和重点
-
-设计稿信息：
-${frameInfo}
-
-用户提示：${msg.prompt}`;
-
-      // 调用 AI 服务
-      const response = await aiService.analyzeFrame(frameInfo, fullPrompt);
-
-      if (response.success && response.data) {
-        figma.ui.postMessage({
-          type: 'result',
-          data: response.data
-        });
-      } else {
-        figma.ui.postMessage({
-          type: 'error',
-          data: response.error || 'AI 服务调用失败'
-        });
-      }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : '发生未知错误';
-      figma.ui.postMessage({
-        type: 'error',
-        data: errorMessage
-      });
-    }
-  }
-};
-
-// 显示 UI
-figma.showUI(__html__, { 
-  width: 440,
-  height: 600,
-  themeColors: true,
-  visible: true,
-  title: "交互说明文档生成器"
-});
 
 
