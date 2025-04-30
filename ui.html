@@ -41,6 +41,7 @@
         padding: 8px;
         border-radius: 4px;
         border: 1px solid #ccc;
+        background-color: #F7F8FA;
         box-sizing: border-box;
       }
       button {
@@ -50,7 +51,6 @@
         color: white;
         font-size: 12px;
         padding: 8px 12px;
-        margin-top: 12px;
         cursor: pointer;
       }
       button:hover {
@@ -65,52 +65,115 @@
       .input-section {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 16px;
       }
       .prompt-input {
         width: 100%;
         height: 80px;
-        padding: 8px;
+        padding: 12px;
         border: 1px solid #E5E5E5;
-        border-radius: 4px;
+        border-radius: 8px;
         resize: none;
         font-size: 14px;
         line-height: 1.5;
+        background-color: #F7F8FA;
+        transition: all 0.3s ease;
+        overflow-y: auto;
       }
       .button-group {
         display: flex;
-        gap: 8px;
+        gap: 12px;
       }
-      .analyze-button {
-        padding: 8px 16px;
-        background: #18A0FB;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
+      .button-container {
+        position: relative;
+        padding: 2px;
+        background: linear-gradient(90deg, #18A0FB, #4CAF50);
+        border-radius: 6px;
+        transition: all 0.4s ease;
         flex: 1;
       }
-      .create-doc-button {
-        padding: 8px 16px;
-        background: #4CAF50;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
+      .button-container::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        margin: auto;
+        border-radius: 6px;
+        z-index: -10;
+        filter: blur(0);
+        transition: filter 0.4s ease;
+      }
+      .button-container:hover::before {
+        background: linear-gradient(90deg, #18A0FB, #4CAF50);
+        filter: blur(8px);
+      }
+      .button-container:active::before {
+        filter: blur(2px);
+      }
+      .button-container.disabled {
+        background: #CCCCCC;
+        pointer-events: none;
+      }
+      .button-container.disabled::before {
+        display: none;
+      }
+      .analyze-button {
+        align-items: center;
+        background-image: linear-gradient(144deg, #af40ff, #5b42f3 50%, #00ddeb);
+        border: 0;
+        border-radius: 8px;
+        box-shadow: rgba(151, 65, 252, 0.2) 0 15px 30px -5px;
+        box-sizing: border-box;
+        color: #ffffff;
+        display: inline-flex;
         font-size: 14px;
-        font-weight: 500;
+        justify-content: center;
+        line-height: 1em;
+        padding: 16px 24px;
+        text-decoration: none;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.3s;
         flex: 1;
       }
       .analyze-button:hover {
-        background: #0D8DE3;
+        background-image: linear-gradient(144deg, #9232db, #4935d1 50%, #00c5d1);
+      }
+      .analyze-button:active {
+        transform: scale(0.95);
+      }
+      .analyze-button:disabled {
+        background-image: linear-gradient(144deg, #cccccc, #cccccc);
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+      .create-doc-button {
+        padding: 16px 24px;
+        background: #FFFFFF;
+        color: #333333;
+        border: 1px solid #E5E5E5;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        flex: 1;
+        transition: all 0.3s;
       }
       .create-doc-button:hover {
-        background: #45a049;
+        background: #F5F5F5;
+        border-color: #D9D9D9;
       }
-      .analyze-button:disabled, .create-doc-button:disabled {
-        background: #CCCCCC;
+      .create-doc-button:active {
+        background: #EBEBEB;
+        border-color: #D9D9D9;
+      }
+      .create-doc-button:disabled {
+        background: #F5F5F5;
+        border-color: #E5E5E5;
+        color: #BFBFBF;
         cursor: not-allowed;
       }
       .result-section {
@@ -120,6 +183,7 @@
         background: #F8F8F8;
         border-radius: 4px;
         border: 1px solid #E5E5E5;
+        display: none; /* 默认隐藏 */
       }
       .result-content {
         white-space: pre-wrap;
@@ -175,43 +239,232 @@
       }
       .loading {
         display: none;
-        text-align: center;
-        padding: 20px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
         color: #666666;
+      }
+      .loading-text {
+        margin-top: 16px;
+        font-size: 14px;
+        color: #666666;
+        text-align: center;
+      }
+      .loader {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 40px;
+      }
+      .bar {
+        display: inline-block;
+        width: 3px;
+        height: 20px;
+        background-color: #18A0FB;
+        border-radius: 3px;
+        animation: scale-up4 1s linear infinite;
+        margin: 0 2px;
+      }
+      .bar:nth-child(2) {
+        height: 30px;
+        animation-delay: .25s;
+      }
+      .bar:nth-child(3) {
+        animation-delay: .5s;
+      }
+      @keyframes scale-up4 {
+        0% {
+          transform: scaleY(1);
+          opacity: 0.5;
+        }
+        20% {
+          transform: scaleY(1.5);
+          opacity: 1;
+        }
+        40% {
+          transform: scaleY(1);
+          opacity: 0.5;
+        }
+        100% {
+          transform: scaleY(1);
+          opacity: 0.5;
+        }
+      }
+      .error-container {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: white;
+        display: none;
+      }
+      .error-container.visible {
+        display: block;
       }
       .error {
         color: #FF4D4F;
-        padding: 8px;
+        padding: 12px;
         background: #FFF0F0;
         border-radius: 4px;
-        margin: 8px 0;
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+        display: block;
+      }
+      .progress-container {
+        width: 100%;
+        max-width: 200px;
+        height: 4px;
+        background-color: #E5E5E5;
+        border-radius: 2px;
+        margin-top: 16px;
+        overflow: hidden;
+      }
+      .progress-bar {
+        height: 100%;
+        background-color: #18A0FB;
+        border-radius: 2px;
+        width: 0%;
+        transition: width 0.3s ease-in-out;
+      }
+      .stage-indicator {
+        display: flex;
+        justify-content: center;
+        margin-top: 16px;
+        gap: 8px;
+      }
+      .stage-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #E5E5E5;
+        transition: background-color 0.3s ease;
+      }
+      .stage-dot.active {
+        background-color: #18A0FB;
+      }
+
+      /* 自定义滚动条样式 */
+      .prompt-input::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .prompt-input::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .prompt-input::-webkit-scrollbar-thumb {
+        background-color: #E5E5E5;
+        border-radius: 3px;
+        border: none;
+      }
+
+      .prompt-input::-webkit-scrollbar-thumb:hover {
+        background-color: #D4D4D4;
+      }
+
+      .prompt-input:focus {
+        outline: none;
+        border-color: #18A0FB;
+        background-color: #FFFFFF;
+        box-shadow: 0 0 0 2px rgba(24, 160, 251, 0.1);
+      }
+
+      .title-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 12px 0 24px 0;
+      }
+
+      .title-icon {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 12px;
+      }
+
+      .title-icon svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      .page-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #333333;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+        letter-spacing: -0.5px;
       }
     </style>
   </head>
   <body>
     <div class="container">
+      <div class="error-container" id="errorContainer">
+        <div id="error" class="error"></div>
+      </div>
+      <div class="header">
+        <div class="title-container">
+          <img id="pluginIcon" alt="Interactive Docgen Icon" class="title-icon">
+          <h1 class="title">Interactive Docgen</h1>
+        </div>
+      </div>
       <div class="input-section">
         <textarea id="prompt" class="prompt-input" placeholder="请输入你的提示词..."></textarea>
         <div class="button-group">
-          <button id="analyze" class="analyze-button">分析</button>
-          <button id="createDoc" class="create-doc-button" disabled>创建说明文档</button>
+          <button id="analyze" class="analyze-button">智能分析</button>
+          <button id="createDoc" class="create-doc-button" disabled>创建说明</button>
         </div>
       </div>
       <div class="result-section">
-        <div id="loading" class="loading">分析中...</div>
-        <div id="error" class="error" style="display: none;"></div>
+        <div id="loading" class="loading">
+          <div class="loader">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+          </div>
+          <div id="loadingText" class="loading-text">正在分析中...</div>
+          <div class="progress-container">
+            <div id="progressBar" class="progress-bar"></div>
+          </div>
+        </div>
         <div id="result" class="result-content"></div>
       </div>
     </div>
     <script>
+      // 页面加载完成后立即请求图标
+      window.onload = () => {
+        // 请求图标
+        parent.postMessage({ pluginMessage: { type: 'get-icon' } }, '*');
+        
+        // 设置默认提示词
+        promptInput.value = defaultPrompt;
+      };
+
       const promptInput = document.getElementById('prompt');
       const analyzeButton = document.getElementById('analyze');
       const createDocButton = document.getElementById('createDoc');
       const resultDiv = document.getElementById('result');
+      const resultSection = document.querySelector('.result-section');
       const loadingDiv = document.getElementById('loading');
       const errorDiv = document.getElementById('error');
+      const errorContainer = document.getElementById('errorContainer');
 
       let currentResult = '';
+      let hasSelectedElement = false;
+
+      // 默认提示词
+      const defaultPrompt = `请你根据这个设计稿的内容，以及严格按照以下格式：
+组件名称
+显示内容：
+默认状态：选中{}
+禁用条件：
+显隐条件：
+排序规则：
+操作支持：
+其他说明：
+输出一份交互说明文档，基础的交互规范可以参考google matirial design和apple design。任何补充的内容都可以放在【其他说明】中，其他【显示内容】【禁用条件】等等部分严格遵照上面格式，若没有该部分则不用显示`;
 
       function formatText(text) {
         // 处理标题
@@ -241,25 +494,64 @@
         return text;
       }
 
+      const loadingStages = [
+        { text: "正在收集设计信息...", progress: 30 },
+        { text: "正在发送到 AI 服务...", progress: 60 },
+        { text: "正在生成分析结果...", progress: 90 }
+      ];
+
+      let currentStage = 0;
+      let progressInterval;
+
+      function updateLoadingStage() {
+        const loadingText = document.getElementById('loadingText');
+        const progressBar = document.getElementById('progressBar');
+
+        if (currentStage < loadingStages.length) {
+          loadingText.textContent = loadingStages[currentStage].text;
+          progressBar.style.width = `${loadingStages[currentStage].progress}%`;
+          currentStage++;
+        } else {
+          clearInterval(progressInterval);
+        }
+      }
+
+      function showError(message) {
+        errorDiv.textContent = message;
+        errorContainer.classList.add('visible');
+      }
+
+      function hideError() {
+        errorContainer.classList.remove('visible');
+      }
+
       analyzeButton.addEventListener('click', async () => {
         const prompt = promptInput.value.trim();
         if (!prompt) {
-          errorDiv.textContent = '请输入提示词';
-          errorDiv.style.display = 'block';
+          showError('请输入提示词');
           return;
         }
 
         analyzeButton.disabled = true;
         createDocButton.disabled = true;
-        loadingDiv.style.display = 'block';
-        errorDiv.style.display = 'none';
+        loadingDiv.style.display = 'flex';
+        hideError();
         resultDiv.innerHTML = '';
+        resultSection.style.display = 'block';
+
+        // 重置进度
+        currentStage = 0;
+        const progressBar = document.getElementById('progressBar');
+        progressBar.style.width = '0%';
+
+        // 开始更新进度
+        progressInterval = setInterval(updateLoadingStage, 2000);
 
         try {
           parent.postMessage({ pluginMessage: { type: 'analyze', prompt } }, '*');
         } catch (error) {
-          errorDiv.textContent = error.message;
-          errorDiv.style.display = 'block';
+          clearInterval(progressInterval);
+          showError(error.message || '分析过程中发生错误');
           analyzeButton.disabled = false;
           createDocButton.disabled = true;
           loadingDiv.style.display = 'none';
@@ -267,31 +559,41 @@
       });
 
       createDocButton.addEventListener('click', () => {
-        if (currentResult) {
-          parent.postMessage({ 
-            pluginMessage: { 
-              type: 'create-documentation', 
-              content: currentResult 
-            } 
-          }, '*');
+        if (!currentResult) {
+          showError('请先进行分析');
+          return;
         }
+
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'create-documentation', 
+            content: currentResult 
+          } 
+        }, '*');
       });
 
       window.onmessage = (event) => {
         const message = event.data.pluginMessage;
         
-        if (message.type === 'result') {
+        if (message.type === 'icon-data') {
+          const img = document.getElementById('pluginIcon');
+          img.src = message.data;
+        } else if (message.type === 'result') {
+          clearInterval(progressInterval);
           currentResult = message.data;
           resultDiv.innerHTML = formatText(message.data);
           loadingDiv.style.display = 'none';
           analyzeButton.disabled = false;
           createDocButton.disabled = false;
+          resultSection.style.display = 'block';
+          hideError();
         } else if (message.type === 'error') {
-          errorDiv.textContent = message.data;
-          errorDiv.style.display = 'block';
+          clearInterval(progressInterval);
+          showError(message.data);
           loadingDiv.style.display = 'none';
           analyzeButton.disabled = false;
           createDocButton.disabled = true;
+          resultSection.style.display = 'none';
         }
       };
     </script>

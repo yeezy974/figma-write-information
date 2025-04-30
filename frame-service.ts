@@ -198,27 +198,33 @@ export class FrameService {
       const textNode = node as TextNode;
       const fontName = textNode.fontName as FontName;
       const letterSpacing = textNode.letterSpacing as LetterSpacing;
-      const lineHeight = textNode.lineHeight as { value: number; unit: 'PIXELS' | 'PERCENT' | 'AUTO' };
-      
+      const lineHeight = textNode.lineHeight as LineHeight;
+
+      const textCase = typeof textNode.textCase === 'string' ? 
+        (['ORIGINAL', 'UPPER', 'LOWER', 'TITLE'].indexOf(textNode.textCase) !== -1 ? 
+          textNode.textCase as 'ORIGINAL' | 'UPPER' | 'LOWER' | 'TITLE' : 
+          'ORIGINAL') : 
+        'ORIGINAL';
+
       return {
         content: textNode.characters,
-        fontSize: textNode.fontSize as number,
+        fontSize: typeof textNode.fontSize === 'number' ? textNode.fontSize : 16,
         fontName: {
-          family: fontName.family,
-          style: fontName.style
+          family: typeof fontName.family === 'string' ? fontName.family : 'Unknown',
+          style: typeof fontName.style === 'string' ? fontName.style : 'Regular'
         },
         textAlignHorizontal: textNode.textAlignHorizontal,
         textAlignVertical: textNode.textAlignVertical,
         letterSpacing: {
-          value: letterSpacing.value as number,
+          value: typeof letterSpacing.value === 'number' ? letterSpacing.value : 0,
           unit: letterSpacing.unit
         },
         lineHeight: {
-          value: lineHeight.value,
-          unit: lineHeight.unit
+          value: typeof lineHeight === 'object' && 'value' in lineHeight ? lineHeight.value : 0,
+          unit: typeof lineHeight === 'object' && 'unit' in lineHeight ? lineHeight.unit : 'AUTO'
         },
-        textCase: textNode.textCase as 'ORIGINAL' | 'UPPER' | 'LOWER' | 'TITLE',
-        textDecoration: textNode.textDecoration as 'NONE' | 'UNDERLINE' | 'STRIKETHROUGH'
+        textCase,
+        textDecoration: typeof textNode.textDecoration === 'string' ? textNode.textDecoration : 'NONE'
       };
     }
     return undefined;

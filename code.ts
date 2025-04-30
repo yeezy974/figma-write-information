@@ -116,10 +116,17 @@ const aiService = AIService.getInstance();
 aiService.setApiKey('sk-229c2d52c43446ff890877402ea1772d');
 
 // 创建说明文档的函数
-async function createDocumentation(node: FrameNode | ComponentNode | GroupNode | InstanceNode, content: string) {
+async function createDocumentation(node: FrameNode | ComponentNode | GroupNode | InstanceNode, content: string): Promise<TextNode | null> {
   // 计算新文本的位置
-  const x = node.x + node.width + 50;
-  const y = node.y;
+  // 获取节点的绝对位置
+  const absoluteBounds = node.absoluteBoundingBox;
+  if (!absoluteBounds) {
+    figma.notify('无法获取元素位置信息');
+    return null;
+  }
+
+  const x = absoluteBounds.x + absoluteBounds.width + 50;
+  const y = absoluteBounds.y;
 
   // 加载字体（PingFang SC）
   await figma.loadFontAsync({ family: "PingFang SC", style: "Regular" });
@@ -133,6 +140,20 @@ async function createDocumentation(node: FrameNode | ComponentNode | GroupNode |
   text.y = y;
   text.fills = [{ type: 'SOLID', color: { r: 52/255, g: 145/255, b: 250/255 } }]; // #3491FA
 
+  // 设置文本样式
+  text.textAlignHorizontal = 'LEFT';
+  text.textAlignVertical = 'TOP';
+  text.letterSpacing = { value: 0, unit: 'PIXELS' };
+  // 修改行高单位为像素，避免百分比计算问题
+  text.lineHeight = { value: 24, unit: 'PIXELS' };
+  text.textCase = 'ORIGINAL';
+  text.textDecoration = 'NONE';
+
+  // 设置文本自动换行
+  text.textAutoResize = 'HEIGHT';
+  text.resize(400, text.height);
+
+  // 将文本添加到当前页面
   figma.currentPage.appendChild(text);
   return text;
 }
@@ -177,17 +198,33 @@ ${frameInfo}
           data: response.data
         });
       } else {
-        figma.ui.postMessage({
-          type: 'error',
-          data: response.error || 'AI 服务调用失败'
-        });
+        // 检查是否是 token 超限错误
+        if (response.error && response.error.includes('maximum context length')) {
+          figma.ui.postMessage({
+            type: 'error',
+            data: '内容信息过多，超出AI最大上下文长度限制（65536 tokens），请尽可能简化信息（例如删除重复元素）'
+          });
+        } else {
+          figma.ui.postMessage({
+            type: 'error',
+            data: response.error || 'AI 服务调用失败'
+          });
+        }
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : '发生未知错误';
-      figma.ui.postMessage({
-        type: 'error',
-        data: errorMessage
-      });
+      // 检查是否是 token 超限错误
+      if (errorMessage.includes('maximum context length')) {
+        figma.ui.postMessage({
+          type: 'error',
+          data: '内容信息过多，超出AI最大上下文长度限制，请尽可能简化信息，如删除重复元素'
+        });
+      } else {
+        figma.ui.postMessage({
+          type: 'error',
+          data: errorMessage
+        });
+      }
     }
   } else if (msg.type === 'create-documentation') {
     try {
@@ -198,8 +235,10 @@ ${frameInfo}
            selection[0].type === 'GROUP' || 
            selection[0].type === 'INSTANCE')) {
         const docText = await createDocumentation(selection[0] as FrameNode | ComponentNode | GroupNode | InstanceNode, msg.content);
-        figma.viewport.scrollAndZoomIntoView([docText]);
-        figma.notify('说明文档创建成功！');
+        if (docText) {
+          figma.viewport.scrollAndZoomIntoView([docText]);
+          figma.notify('说明文档创建成功！');
+        }
       } else {
         figma.notify('请选择一个画框（frame）、组件（component/instance）或分组（group）来创建说明文档');
       }

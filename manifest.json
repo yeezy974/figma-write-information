@@ -1,6 +1,6 @@
 {
-  "name": "AI Design Assistant",
-  "id": "1497444990001371232",
+  "name": "Interactive doc generate",
+  "id": "1499329774209924401",
   "api": "1.0.0",
   "main": "code.js",
   "capabilities": [],
@@ -12,7 +12,7 @@
   ],
   "ui": "ui.html",
   "networkAccess": {
-    "allowedDomains": ["*"],
-    "reasoning": "需要访问 AI 服务 API 来提供设计建议和分析功能"
+    "allowedDomains": ["https://api.deepseek.com"],
+    "reasoning": "需要访问 Deepseek API 进行 AI 分析"
   }
 }

@@ -58,8 +58,8 @@ export class AIService {
     };
 
     try {
-      console.log('准备发送请求到:', this.apiUrl);
-      const response = await fetch(this.apiUrl, {
+      console.log('开始发送请求到 AI 服务...');
+      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -108,25 +108,26 @@
         const fontName = textNode.fontName;
         const letterSpacing = textNode.letterSpacing;
         const lineHeight = textNode.lineHeight;
+        const textCase = typeof textNode.textCase === "string" ? ["ORIGINAL", "UPPER", "LOWER", "TITLE"].indexOf(textNode.textCase) !== -1 ? textNode.textCase : "ORIGINAL" : "ORIGINAL";
         return {
           content: textNode.characters,
-          fontSize: textNode.fontSize,
+          fontSize: typeof textNode.fontSize === "number" ? textNode.fontSize : 16,
           fontName: {
-            family: fontName.family,
-            style: fontName.style
+            family: typeof fontName.family === "string" ? fontName.family : "Unknown",
+            style: typeof fontName.style === "string" ? fontName.style : "Regular"
           },
           textAlignHorizontal: textNode.textAlignHorizontal,
           textAlignVertical: textNode.textAlignVertical,
           letterSpacing: {
-            value: letterSpacing.value,
+            value: typeof letterSpacing.value === "number" ? letterSpacing.value : 0,
             unit: letterSpacing.unit
           },
           lineHeight: {
-            value: lineHeight.value,
-            unit: lineHeight.unit
+            value: typeof lineHeight === "object" && "value" in lineHeight ? lineHeight.value : 0,
+            unit: typeof lineHeight === "object" && "unit" in lineHeight ? lineHeight.unit : "AUTO"
           },
-          textCase: textNode.textCase,
-          textDecoration: textNode.textDecoration
+          textCase,
+          textDecoration: typeof textNode.textDecoration === "string" ? textNode.textDecoration : "NONE"
         };
       }
       return void 0;
@@ -311,8 +312,8 @@
         max_tokens: 2e3
       };
       try {
-        console.log("\u51C6\u5907\u53D1\u9001\u8BF7\u6C42\u5230:", this.apiUrl);
-        const response = await fetch(this.apiUrl, {
+        console.log("\u5F00\u59CB\u53D1\u9001\u8BF7\u6C42\u5230 AI \u670D\u52A1...");
+        const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -484,8 +485,13 @@ ${frameInfo}
   var aiService = AIService.getInstance();
   aiService.setApiKey("sk-229c2d52c43446ff890877402ea1772d");
   async function createDocumentation(node, content) {
-    const x = node.x + node.width + 50;
-    const y = node.y;
+    const absoluteBounds = node.absoluteBoundingBox;
+    if (!absoluteBounds) {
+      figma.notify("\u65E0\u6CD5\u83B7\u53D6\u5143\u7D20\u4F4D\u7F6E\u4FE1\u606F");
+      return null;
+    }
+    const x = absoluteBounds.x + absoluteBounds.width + 50;
+    const y = absoluteBounds.y;
     await figma.loadFontAsync({ family: "PingFang SC", style: "Regular" });
     const text = figma.createText();
     text.fontName = { family: "PingFang SC", style: "Regular" };
@@ -494,12 +500,46 @@ ${frameInfo}
     text.x = x;
     text.y = y;
     text.fills = [{ type: "SOLID", color: { r: 52 / 255, g: 145 / 255, b: 250 / 255 } }];
+    text.textAlignHorizontal = "LEFT";
+    text.textAlignVertical = "TOP";
+    text.letterSpacing = { value: 0, unit: "PIXELS" };
+    text.lineHeight = { value: 24, unit: "PIXELS" };
+    text.textCase = "ORIGINAL";
+    text.textDecoration = "NONE";
+    text.textAutoResize = "HEIGHT";
+    text.resize(400, text.height);
     figma.currentPage.appendChild(text);
     return text;
   }
+  figma.showUI(__html__, {
+    width: 440,
+    height: 600,
+    themeColors: true,
+    visible: true,
+    title: "\u4EA4\u4E92\u8BF4\u660E\u6587\u6863\u751F\u6210\u5668"
+  });
+
+  // 统一的消息处理程序
   figma.ui.onmessage = async (msg) => {
-    if (msg.type === "analyze") {
-      try {
+    try {
+      if (msg.type === 'get-icon') {
+        try {
+          const image = await figma.createImageAsync('images/icon.png');
+          const imageData = await image.getBytesAsync();
+          const base64 = figma.base64Encode(imageData);
+          figma.ui.postMessage({
+            type: 'icon-data',
+            data: `data:image/png;base64,${base64}`
+          });
+        } catch (error) {
+          console.error('Failed to load icon:', error);
+          // 如果加载失败，发送一个默认的图标
+          figma.ui.postMessage({
+            type: 'icon-data',
+            data: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHJ4PSI4IiBmaWxsPSIjMThBMEZCIiBmaWxsLW9wYWNpdHk9IjAuMSIvPjxwYXRoIGQ9Ik0xNCAxNkMxNCAxNC44OTU0IDE0Ljg5NTQgMTQgMTYgMTRIMzJDMzMuMTA0NiAxNCAzNCAxNC44OTU0IDM0IDE2VjMyQzM0IDMzLjEwNDYgMzMuMTA0NiAzNCAzMiAzNEgxNkMxNC44OTU0IDM0IDE0IDMzLjEwNDYgMTQgMzJWMTZaIiBzdHJva2U9IiMxOEEwRkIiIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik0xOSAyMUgyOSIgc3Ryb2tlPSIjMThBMEZCIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxwYXRoIGQ9Ik0xOSAyN0gyNSIgc3Ryb2tlPSIjMThBMEZCIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxjaXJjbGUgY3g9IjM0IiBjeT0iMTQiIHI9IjYiIGZpbGw9IiMxOEEwRkIiLz48cGF0aCBkPSJNMzIuNSAxNEwzMy41IDE1TDM1LjUgMTMiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4='
+          });
+        }
+      } else if (msg.type === "analyze") {
         const selectedFrames = await frameService.getSelectedFrames();
         if (selectedFrames.length === 0) {
           figma.ui.postMessage({
@@ -532,94 +572,20 @@ ${frameInfo}
             data: response.error || "AI \u670D\u52A1\u8C03\u7528\u5931\u8D25"
           });
         }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "\u53D1\u751F\u672A\u77E5\u9519\u8BEF";
-        figma.ui.postMessage({
-          type: "error",
-          data: errorMessage
-        });
-      }
-    } else if (msg.type === "create-documentation") {
-      try {
+      } else if (msg.type === "create-documentation") {
         const selection = figma.currentPage.selection;
         if (selection.length > 0 && (selection[0].type === "FRAME" || selection[0].type === "COMPONENT" || selection[0].type === "GROUP" || selection[0].type === "INSTANCE")) {
           const docText = await createDocumentation(selection[0], msg.content);
-          figma.viewport.scrollAndZoomIntoView([docText]);
-          figma.notify("\u8BF4\u660E\u6587\u6863\u521B\u5EFA\u6210\u529F\uFF01");
+          if (docText) {
+            figma.viewport.scrollAndZoomIntoView([docText]);
+            figma.notify("\u8BF4\u660E\u6587\u6863\u521B\u5EFA\u6210\u529F\uFF01");
+          }
         } else {
           figma.notify("\u8BF7\u9009\u62E9\u4E00\u4E2A\u753B\u6846\uFF08frame\uFF09\u3001\u7EC4\u4EF6\uFF08component/instance\uFF09\u6216\u5206\u7EC4\uFF08group\uFF09\u6765\u521B\u5EFA\u8BF4\u660E\u6587\u6863");
         }
-      } catch (error) {
-        figma.notify("\u521B\u5EFA\u8BF4\u660E\u6587\u6863\u65F6\u51FA\u9519\uFF1A" + (error instanceof Error ? error.message : String(error)));
       }
+    } catch (error) {
+      figma.notify("\u53D1\u751F\u9519\u8BEF\uFF1A" + (error instanceof Error ? error.message : String(error)));
     }
   };
-  figma.showUI(__html__, {
-    width: 440,
-    height: 600,
-    themeColors: true,
-    visible: true,
-    title: "\u4EA4\u4E92\u8BF4\u660E\u6587\u6863\u751F\u6210\u5668"
-  });
-  if (figma.editorType === "figjam") {
-    figma.showUI(__html__, {
-      width: 440,
-      height: 600,
-      themeColors: true,
-      visible: true,
-      title: "\u4EA4\u4E92\u8BF4\u660E\u6587\u6863\u751F\u6210\u5668"
-    });
-    figma.ui.onmessage = async (msg) => {
-      try {
-        if (msg.type === "create-shapes") {
-          const numberOfShapes = msg.count || 5;
-          const nodes = [];
-          for (let i = 0; i < numberOfShapes; i++) {
-            const shape = figma.createShapeWithText();
-            shape.shapeType = "ROUNDED_RECTANGLE";
-            shape.x = i * (shape.width + 200);
-            shape.fills = [{ type: "SOLID", color: { r: 1, g: 0.5, b: 0 } }];
-            figma.currentPage.appendChild(shape);
-            nodes.push(shape);
-          }
-          for (let i = 0; i < numberOfShapes - 1; i++) {
-            const connector = figma.createConnector();
-            connector.strokeWeight = 8;
-            connector.connectorStart = {
-              endpointNodeId: nodes[i].id,
-              magnet: "AUTO"
-            };
-            connector.connectorEnd = {
-              endpointNodeId: nodes[i + 1].id,
-              magnet: "AUTO"
-            };
-          }
-          figma.currentPage.selection = nodes;
-          figma.viewport.scrollAndZoomIntoView(nodes);
-          figma.closePlugin();
-        }
-        if (msg.type === "create-documentation") {
-          const selection = figma.currentPage.selection;
-          if (selection.length > 0 && selection[0].type === "FRAME") {
-            try {
-              const docFrame = await createParagraphTextNodes(selection[0], "");
-              if (Array.isArray(docFrame) && docFrame.length > 0) {
-                figma.viewport.scrollAndZoomIntoView([docFrame[0]]);
-              }
-              figma.notify("\u8BF4\u660E\u6587\u6863\u521B\u5EFA\u6210\u529F\uFF01");
-            } catch (error) {
-              figma.notify("\u521B\u5EFA\u8BF4\u660E\u6587\u6863\u65F6\u51FA\u9519\uFF1A" + (error instanceof Error ? error.message : String(error)));
-            }
-          } else {
-            figma.notify("\u8BF7\u9009\u62E9\u4E00\u4E2A\u6846\u67B6\u6765\u521B\u5EFA\u8BF4\u660E\u6587\u6863");
-          }
-        }
-        if (msg.type === "cancel") {
-          figma.closePlugin();
-        }
-      } catch (error) {
-        figma.notify("\u53D1\u751F\u9519\u8BEF\uFF1A" + (error instanceof Error ? error.message : String(error)));
-      }
-    };
-  }
 })();
